@@ -1,4 +1,5 @@
 const readline = require('readline');
+const chalk = require('chalk');
 const { getPhrase, calculateTimeLimit } = require('./wordbank');
 
 class BattleSystem {
@@ -12,6 +13,8 @@ class BattleSystem {
 
   async startBattle(player, monster, onUpdate) {
     this.isActive = true;
+    player.resetCombo();
+    
     this.currentBattle = {
       player,
       monster,
@@ -30,8 +33,14 @@ class BattleSystem {
 
     this.addLog(`⚔️ 战斗开始！你遇到了 ${monster.emoji} ${monster.name}！`);
     this.addLog(`怪物属性 - HP: ${monster.hp}/${monster.maxHp} | 攻击: ${monster.attack} | 防御: ${monster.defense}`);
+    this.addLog(chalk.gray('💡 提示：连续3次完美格挡可触发连击！下一击伤害翻倍！'));
     
     await this.battleLoop();
+    
+    if (!player.isAlive()) {
+      player.resetCombo();
+    }
+    
     this.isActive = false;
     
     return this.currentBattle.results;
@@ -82,16 +91,30 @@ class BattleSystem {
     
     const isBoss = monster.isBoss;
     const addNoise = isBoss && monster.hasNoise;
-    const phrase = getPhrase(player.floor, isBoss, addNoise);
+    const comboActive = player.comboActive;
+    const phrase = getPhrase(player.floor, isBoss, addNoise, comboActive);
     
-    let timeLimit = calculateTimeLimit(phrase, 0.3, 3);
+    let timeLimit = calculateTimeLimit(phrase, 0.3, 3, comboActive);
     if (isBoss) {
       timeLimit = Math.max(5, phrase.length * 0.35);
     }
     
+    if (comboActive) {
+      this.addLog(chalk.yellow('⚡⚡⚡ 连击发动！⚡⚡⚡'));
+      this.addLog(chalk.yellow(`🔥 连击 x${player.comboCount}！下一击伤害翻倍！短语速攻模式！`));
+    } else if (player.comboCount > 0) {
+      this.addLog(chalk.yellow(`🔥 连击累积: ${player.comboCount}/3`));
+    }
+    
     this.addLog(`\n--- 第 ${this.currentBattle.round} 回合 ---`);
     this.addLog(`${monster.emoji} ${monster.name} 喊道:`);
-    this.addLog(`  "${phrase}"`);
+    
+    if (comboActive) {
+      this.addLog(`  ${chalk.yellow('"')}${chalk.yellow.bold(phrase)}${chalk.yellow('"')}`);
+    } else {
+      this.addLog(`  "${phrase}"`);
+    }
+    
     this.addLog(`⏱️ 限时: ${timeLimit.toFixed(1)} 秒`);
     this.notifyUpdate();
     
@@ -102,10 +125,12 @@ class BattleSystem {
     
     if (inputResult.success) {
       const timeRatio = inputResult.timeUsed / timeLimit;
+      const isPerfect = timeRatio < 0.5;
       const speedBonus = Math.max(0.5, 2 - timeRatio * 1.5);
       
+      const comboMultiplier = player.getComboDamageMultiplier();
       const baseDamage = player.attack;
-      playerDamage = Math.max(1, Math.floor(baseDamage * speedBonus) - monster.defense);
+      playerDamage = Math.max(1, Math.floor(baseDamage * speedBonus * comboMultiplier) - monster.defense);
       
       monster.hp -= playerDamage;
       results.damageDealt += playerDamage;
@@ -120,23 +145,77 @@ class BattleSystem {
         }
       }
       
-      if (timeRatio < 0.5) {
+      if (isPerfect) {
         results.perfectBlocks++;
         player.stats.perfectBlocks++;
-        this.addLog(`✨ 完美格挡！速度加成 x${speedBonus.toFixed(2)}！造成 ${playerDamage} 点伤害！`);
+        const prevCombo = player.comboCount;
+        player.incrementCombo(true);
+        const newCombo = player.comboCount;
+        
+        if (comboMultiplier > 1.0) {
+          this.addLog(
+            chalk.yellow(
+              `✨ 完美格挡！速度 x${speedBonus.toFixed(2)} + 连击 x${comboMultiplier}！` +
+              `造成 ${playerDamage} 点伤害！`
+            )
+          );
+        } else {
+          this.addLog(
+            `✨ 完美格挡！速度加成 x${speedBonus.toFixed(2)}！造成 ${playerDamage} 点伤害！`
+          );
+        }
+        
+        if (prevCombo < 3 && newCombo >= 3) {
+          this.addLog(chalk.yellow.bold('\n🎉🎉🎉 连击达成！下次攻击伤害翻倍！🎉🎉🎉\n'));
+        }
       } else {
-        this.addLog(`✅ 格挡成功！速度加成 x${speedBonus.toFixed(2)}，造成 ${playerDamage} 点伤害！`);
+        const broken = player.breakCombo();
+        if (broken.wasActive) {
+          this.addLog(
+            chalk.magenta(
+              `✅ 格挡成功！速度 x${speedBonus.toFixed(2)}，造成 ${playerDamage} 点伤害！`
+            )
+          );
+          this.addLog(chalk.cyan('💬 连击中断了，不过这次攻击已经享受到加成啦！再来！'));
+        } else if (broken.oldCount > 0) {
+          this.addLog(
+            `✅ 格挡成功！速度加成 x${speedBonus.toFixed(2)}，造成 ${playerDamage} 点伤害！`
+          );
+          this.addLog(chalk.cyan('💬 只差一点就完美了，连击重置了，下次加油！'));
+        } else {
+          this.addLog(
+            `✅ 格挡成功！速度加成 x${speedBonus.toFixed(2)}，造成 ${playerDamage} 点伤害！`
+          );
+        }
       }
       
     } else if (inputResult.timeout) {
-      this.addLog(`⏰ 超时了！未能格挡攻击！`);
+      const broken = player.breakCombo();
+      this.addLog(chalk.red(`⏰ 超时了！未能格挡攻击！`));
+      
+      if (broken.wasActive) {
+        this.addLog(chalk.cyan('💬 哎呀连击断了！别灰心，深呼吸，下一次一定可以的！'));
+      } else if (broken.oldCount > 0) {
+        this.addLog(chalk.cyan('💬 手速慢了一点点！没关系，重新来过！'));
+      }
+      
       monsterDamage = this.calculateMonsterDamage(player, monster);
       const actualDamage = player.takeDamage(monsterDamage);
       results.damageTaken += actualDamage;
       this.addLog(`💔 受到 ${actualDamage} 点伤害！HP: ${player.hp}/${player.maxHp}`);
       
     } else {
-      this.addLog(`❌ 输入错误！"${inputResult.input}" ≠ "${phrase}"`);
+      const broken = player.breakCombo();
+      this.addLog(chalk.red(`❌ 输入错误！"${inputResult.input}" ≠ "${phrase}"`));
+      
+      if (broken.wasActive) {
+        this.addLog(chalk.cyan('💬 连击没了好可惜！不过别管它，专注下一击吧！'));
+      } else if (broken.oldCount > 0) {
+        this.addLog(chalk.cyan('💬 一个小失误！稳下来，慢慢敲就好～'));
+      } else {
+        this.addLog(chalk.cyan('💬 输错啦，下次看仔细一点哦！'));
+      }
+      
       monsterDamage = this.calculateMonsterDamage(player, monster);
       const actualDamage = player.takeDamage(monsterDamage);
       results.damageTaken += actualDamage;

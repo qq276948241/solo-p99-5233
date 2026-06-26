@@ -35,14 +35,30 @@ class UIRenderer {
     const attackText = `⚔️ ${player.attack}`;
     const defenseText = `🛡️ ${player.defense}`;
     
+    let comboText = '';
+    if (player.comboActive) {
+      comboText = `  ${chalk.bgYellow.black.bold(` ⚡连击 x${player.comboCount} x2伤害！ `)}`;
+    } else if (player.comboCount > 0) {
+      comboText = `  ${chalk.bgYellow.black(` 🔥连击: ${player.comboCount}/3 `)}`;
+    }
+    
     const weapon = player.equipment.weapon ? `${player.equipment.weapon.emoji} ${player.equipment.weapon.name}` : '空手';
     const armor = player.equipment.armor ? `${player.equipment.armor.emoji} ${player.equipment.armor.name}` : '无';
     const accessory = player.equipment.accessory ? `${player.equipment.accessory.emoji} ${player.equipment.accessory.name}` : '无';
     
-    const line1 = ` ${floorText}  ${levelText}  ${hpText} ${hpBar}  ${expText} ${expBar}  ${goldText}`;
+    let line1 = ` ${floorText}  ${levelText}  ${hpText} ${hpBar}  ${expText} ${expBar}  ${goldText}${comboText}`;
     const line2 = ` ${attackText}  ${defenseText}  武器: ${weapon}  护甲: ${armor}  饰品: ${accessory}`;
     
-    this.stdout.write(chalk.bgWhite.black(line1.padEnd(this.width, ' ') + '\n'));
+    let line1Bg;
+    if (player.comboActive) {
+      line1Bg = chalk.bgYellow.black(line1.padEnd(this.width, ' '));
+    } else if (player.comboCount > 0) {
+      line1Bg = chalk.bgWhite.black(line1.padEnd(this.width, ' '));
+    } else {
+      line1Bg = chalk.bgWhite.black(line1.padEnd(this.width, ' '));
+    }
+    
+    this.stdout.write(line1Bg + '\n');
     this.stdout.write(chalk.bgGray.white(line2.padEnd(this.width, ' ') + '\n'));
     this.stdout.write(chalk.bgWhite(' '.repeat(this.width) + '\n'));
   }
@@ -137,13 +153,40 @@ class UIRenderer {
   drawBattleLog(logs) {
     this.stdout.write(chalk.yellow('=== 战斗日志 ===\n'));
     const recentLogs = logs.slice(-15);
+    const BLINK = '\x1b[5m';
+    const RESET = '\x1b[0m';
+    
     for (const log of recentLogs) {
       let coloredLog = log;
-      if (log.includes('完美格挡') || log.includes('✨')) coloredLog = chalk.yellow(log);
-      else if (log.includes('格挡成功') || log.includes('✅')) coloredLog = chalk.green(log);
-      else if (log.includes('受到') || log.includes('💔') || log.includes('❌')) coloredLog = chalk.red(log);
-      else if (log.includes('击败') || log.includes('🎉')) coloredLog = chalk.magenta(log);
-      else if (log.includes('获得') || log.includes('💚')) coloredLog = chalk.cyan(log);
+      
+      if (log.includes('连击达成') || log.includes('🎉🎉🎉')) {
+        coloredLog = chalk.bgYellow.black.bold(log);
+        coloredLog = BLINK + coloredLog + RESET;
+      } else if (log.includes('连击发动') || log.includes('⚡⚡⚡')) {
+        coloredLog = chalk.bgYellow.black.bold(log);
+        coloredLog = BLINK + coloredLog + RESET;
+      } else if (log.includes('连击 x') || log.includes('🔥 连击 x')) {
+        coloredLog = chalk.yellow.bold(log);
+      } else if (log.includes('连击累积')) {
+        coloredLog = chalk.yellow(log);
+      } else if (log.includes('连击断') || log.includes('连击中断') || log.includes('连击没了') || log.includes('连击重置')) {
+        coloredLog = chalk.red.bold(log);
+      } else if (log.includes('完美格挡') || log.includes('✨')) {
+        if (log.includes('连击 x')) {
+          coloredLog = chalk.bgYellow.black(log);
+        } else {
+          coloredLog = chalk.yellow(log);
+        }
+      } else if (log.includes('格挡成功') || log.includes('✅')) {
+        coloredLog = chalk.green(log);
+      } else if (log.includes('受到') || log.includes('💔') || log.includes('❌') || log.includes('超时')) {
+        coloredLog = chalk.red(log);
+      } else if (log.includes('击败') || log.includes('🎉')) {
+        coloredLog = chalk.magenta(log);
+      } else if (log.includes('获得') || log.includes('💚') || log.includes('吸血')) {
+        coloredLog = chalk.cyan(log);
+      }
+      
       this.stdout.write(coloredLog + '\n');
     }
     this.stdout.write('\n');
@@ -306,7 +349,9 @@ class UIRenderer {
     this.stdout.write(`造成伤害: ${player.stats.totalDamageDealt}\n`);
     this.stdout.write(`受到伤害: ${player.stats.totalDamageTaken}\n`);
     this.stdout.write(`完美格挡: ${player.stats.perfectBlocks}\n`);
-    this.stdout.write(`获得物品: ${player.stats.itemsCollected}\n\n`);
+    this.stdout.write(`获得物品: ${player.stats.itemsCollected}\n`);
+    this.stdout.write(chalk.yellow(`最高连击: ${player.stats.maxCombo || 0}\n`));
+    this.stdout.write(chalk.red(`连击中断: ${player.stats.comboBreaks || 0}\n\n`));
     
     this.stdout.write(chalk.green('按任意键返回主菜单...'));
   }
@@ -337,7 +382,9 @@ class UIRenderer {
     this.stdout.write(`造成伤害: ${player.stats.totalDamageDealt}\n`);
     this.stdout.write(`受到伤害: ${player.stats.totalDamageTaken}\n`);
     this.stdout.write(`完美格挡: ${player.stats.perfectBlocks}\n`);
-    this.stdout.write(`获得物品: ${player.stats.itemsCollected}\n\n`);
+    this.stdout.write(`获得物品: ${player.stats.itemsCollected}\n`);
+    this.stdout.write(chalk.yellow(`最高连击: ${player.stats.maxCombo || 0}\n`));
+    this.stdout.write(chalk.red(`连击中断: ${player.stats.comboBreaks || 0}\n\n`));
     
     this.stdout.write(chalk.green('按任意键返回主菜单...'));
   }
@@ -371,6 +418,13 @@ class UIRenderer {
     this.stdout.write('• 输入错误：被怪物击中，受到伤害\n');
     this.stdout.write('• 超时未输入：被怪物击中，受到伤害\n');
     this.stdout.write('• 输入速度越快，伤害越高！50%时间内完成还会触发完美格挡！\n\n');
+    
+    this.stdout.write(chalk.cyan('【连击系统】 ⚡\n'));
+    this.stdout.write(chalk.yellow('• 连续3次完美格挡即可触发连击！\n'));
+    this.stdout.write('• 触发连击后，下一击伤害翻倍（x2.0），并且怪物的话会变短！\n');
+    this.stdout.write('• 连击累积中也会获得小加成：1次完美+10%，2次完美+30%\n');
+    this.stdout.write(chalk.red('• 一旦输入错误、超时、或非完美格挡，连击就会清零\n'));
+    this.stdout.write('• 没关系，失误会有暖心提示安慰你，重整旗鼓再战！\n\n');
     
     this.stdout.write(chalk.cyan('【地图操作】\n'));
     this.stdout.write('• 方向键 / WASD / HJKL：移动角色\n');

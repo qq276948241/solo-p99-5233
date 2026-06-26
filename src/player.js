@@ -35,8 +35,13 @@ class Player {
       totalDamageDealt: 0,
       totalDamageTaken: 0,
       perfectBlocks: 0,
-      itemsCollected: 0
+      itemsCollected: 0,
+      maxCombo: 0,
+      comboBreaks: 0
     };
+    
+    this.comboCount = 0;
+    this.comboActive = false;
     
     this.recalculateStats();
   }
@@ -159,6 +164,45 @@ class Player {
   
   getLifesteal() {
     return this.equipment.accessory?.lifesteal || 0;
+  }
+  
+  incrementCombo(isPerfect) {
+    if (isPerfect) {
+      this.comboCount++;
+      if (this.comboCount >= 3) {
+        this.comboActive = true;
+      }
+      if (this.comboCount > this.stats.maxCombo) {
+        this.stats.maxCombo = this.comboCount;
+      }
+      return this.comboCount;
+    }
+    return this.comboCount;
+  }
+  
+  breakCombo() {
+    if (this.comboCount >= 3) {
+      this.stats.comboBreaks++;
+    }
+    const oldCount = this.comboCount;
+    const wasActive = this.comboActive;
+    this.comboCount = 0;
+    this.comboActive = false;
+    return { oldCount, wasActive };
+  }
+  
+  resetCombo() {
+    this.comboCount = 0;
+    this.comboActive = false;
+  }
+  
+  getComboDamageMultiplier() {
+    if (this.comboActive) {
+      return 2.0;
+    }
+    if (this.comboCount === 2) return 1.3;
+    if (this.comboCount === 1) return 1.1;
+    return 1.0;
   }
   
   advanceFloor() {

@@ -1,4 +1,31 @@
 const wordBank = {
+  combo: [
+    "看招！",
+    "受死！",
+    "接招！",
+    "找死！",
+    "出招！",
+    "纳命！",
+    "哼！",
+    "哈！",
+    "杀！",
+    "斩！",
+    "破！",
+    "灭！",
+    "杀无赦！",
+    "接我一击！",
+    "吃我一剑！",
+    "给我倒下！",
+    "你完了！",
+    "去死吧！",
+    "别挣扎！",
+    "认命吧！",
+    "嘿嘿嘿！",
+    "哈哈哈！",
+    "休想逃！",
+    "跪下！",
+    "臣服！"
+  ],
   easy: [
     "你敢应战吗？",
     "看我一剑！",
@@ -77,10 +104,12 @@ function addNoise(text, noiseLevel = 0.15) {
   return chars.join('');
 }
 
-function getPhrase(difficulty, isBoss = false, addNoiseFlag = false) {
+function getPhrase(difficulty, isBoss = false, addNoiseFlag = false, comboActive = false) {
   let pool;
   
-  if (isBoss) {
+  if (comboActive && !isBoss) {
+    pool = wordBank.combo;
+  } else if (isBoss) {
     pool = wordBank.boss;
   } else {
     switch (difficulty) {
@@ -105,14 +134,18 @@ function getPhrase(difficulty, isBoss = false, addNoiseFlag = false) {
   
   let phrase = pool[Math.floor(Math.random() * pool.length)];
   
-  if (addNoiseFlag) {
+  if (addNoiseFlag && !comboActive) {
     phrase = addNoise(phrase, 0.1 + Math.random() * 0.15);
   }
   
   return phrase;
 }
 
-function calculateTimeLimit(phrase, baseTime = 0.3, minTime = 3) {
+function calculateTimeLimit(phrase, baseTime = 0.3, minTime = 3, comboActive = false) {
+  if (comboActive) {
+    baseTime = 0.2;
+    minTime = 1.5;
+  }
   return Math.max(minTime, phrase.length * baseTime);
 }
 

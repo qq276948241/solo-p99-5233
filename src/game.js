@@ -381,6 +381,8 @@ class Game {
       process.stdin.on('keypress', this.keypressListener);
     }
     
+    this.player.resetCombo();
+    
     if (result.playerWon) {
       if (this.player.floor === 50 && monster.id === 'boss_voidlord') {
         this.showVictory();
