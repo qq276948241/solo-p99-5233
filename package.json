@@ -1,0 +1,17 @@
+{
+  "name": "typing-dungeon",
+  "version": "1.0.0",
+  "description": "打字战斗地牢探险游戏 - 通过打字击败怪物，一层层往上爬！",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "keypress": "^0.2.1"
+  }
+}
