@@ -5,12 +5,17 @@ class InputHandler {
     this.stdin = stdin;
     this.stdout = stdout;
     this.rl = null;
+    this.timeoutId = null;
+    this.resolved = false;
   }
 
   collectInput(expected, timeoutSeconds) {
     return new Promise((resolve) => {
-      let timedOut = false;
+      this._clearPending();
+      this.resolved = false;
+
       const startTime = Date.now();
+      const timeoutMs = timeoutSeconds * 1000;
 
       const rl = readline.createInterface({
         input: this.stdin,
@@ -20,20 +25,25 @@ class InputHandler {
 
       this.rl = rl;
 
-      const timeoutId = setTimeout(() => {
-        timedOut = true;
+      this.timeoutId = setTimeout(() => {
+        if (this.resolved) return;
+        const timeUsed = (Date.now() - startTime) / 1000;
+        this.resolved = true;
         rl.close();
-      }, timeoutSeconds * 1000);
+        resolve(this._result(false, true, '', timeUsed));
+      }, timeoutMs);
 
       rl.setPrompt('> ');
       rl.prompt();
 
       rl.on('line', (line) => {
-        clearTimeout(timeoutId);
+        if (this.resolved) return;
+        this._clearTimeout();
         const timeUsed = (Date.now() - startTime) / 1000;
+        this.resolved = true;
         rl.close();
 
-        if (timedOut) {
+        if (timeUsed > timeoutSeconds) {
           resolve(this._result(false, true, line, timeUsed));
         } else {
           resolve(this._result(line === expected, false, line, timeUsed));
@@ -41,12 +51,29 @@ class InputHandler {
       });
 
       rl.on('close', () => {
-        if (timedOut) {
-          const timeUsed = (Date.now() - startTime) / 1000;
+        if (this.resolved) return;
+        const timeUsed = (Date.now() - startTime) / 1000;
+        this.resolved = true;
+        if (timeUsed > timeoutSeconds) {
           resolve(this._result(false, true, '', timeUsed));
         }
       });
     });
+  }
+
+  _clearTimeout() {
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+      this.timeoutId = null;
+    }
+  }
+
+  _clearPending() {
+    this._clearTimeout();
+    if (this.rl) {
+      this.rl.close();
+      this.rl = null;
+    }
   }
 
   _result(success, timeout, input, timeUsed) {
@@ -54,10 +81,7 @@ class InputHandler {
   }
 
   cancel() {
-    if (this.rl) {
-      this.rl.close();
-      this.rl = null;
-    }
+    this._clearPending();
   }
 }
 
