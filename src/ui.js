@@ -9,6 +9,54 @@ class UIRenderer {
     this.height = 24;
   }
 
+  flashText(text) {
+    return '\x1b[5m' + chalk.bgYellow.black.bold(text) + '\x1b[0m';
+  }
+
+  shakeText(text) {
+    return chalk.red.bold(text);
+  }
+
+  comboActiveText(text) {
+    return chalk.yellow.bold(text);
+  }
+
+  comboBuildText(text) {
+    return chalk.yellow(text);
+  }
+
+  perfectBlockText(text) {
+    return chalk.yellow(text);
+  }
+
+  blockSuccessText(text) {
+    return chalk.green(text);
+  }
+
+  damageText(text) {
+    return chalk.red(text);
+  }
+
+  comfortText(text) {
+    return chalk.cyan('💬 ' + text);
+  }
+
+  lifestealText(text) {
+    return chalk.cyan(text);
+  }
+
+  defeatText(text) {
+    return chalk.magenta(text);
+  }
+
+  hintText(text) {
+    return chalk.gray(text);
+  }
+
+  comboPhraseText(phrase) {
+    return chalk.yellow('"') + chalk.yellow.bold(phrase) + chalk.yellow('"');
+  }
+
   clear() {
     this.stdout.write('\x1Bc');
   }
@@ -153,38 +201,34 @@ class UIRenderer {
   drawBattleLog(logs) {
     this.stdout.write(chalk.yellow('=== 战斗日志 ===\n'));
     const recentLogs = logs.slice(-15);
-    const BLINK = '\x1b[5m';
-    const RESET = '\x1b[0m';
     
     for (const log of recentLogs) {
       let coloredLog = log;
       
       if (log.includes('连击达成') || log.includes('🎉🎉🎉')) {
-        coloredLog = chalk.bgYellow.black.bold(log);
-        coloredLog = BLINK + coloredLog + RESET;
+        coloredLog = this.flashText(log);
       } else if (log.includes('连击发动') || log.includes('⚡⚡⚡')) {
-        coloredLog = chalk.bgYellow.black.bold(log);
-        coloredLog = BLINK + coloredLog + RESET;
+        coloredLog = this.flashText(log);
       } else if (log.includes('连击 x') || log.includes('🔥 连击 x')) {
-        coloredLog = chalk.yellow.bold(log);
+        coloredLog = this.comboActiveText(log);
       } else if (log.includes('连击累积')) {
-        coloredLog = chalk.yellow(log);
+        coloredLog = this.comboBuildText(log);
       } else if (log.includes('连击断') || log.includes('连击中断') || log.includes('连击没了') || log.includes('连击重置')) {
-        coloredLog = chalk.red.bold(log);
+        coloredLog = this.shakeText(log);
       } else if (log.includes('完美格挡') || log.includes('✨')) {
         if (log.includes('连击 x')) {
           coloredLog = chalk.bgYellow.black(log);
         } else {
-          coloredLog = chalk.yellow(log);
+          coloredLog = this.perfectBlockText(log);
         }
       } else if (log.includes('格挡成功') || log.includes('✅')) {
-        coloredLog = chalk.green(log);
+        coloredLog = this.blockSuccessText(log);
       } else if (log.includes('受到') || log.includes('💔') || log.includes('❌') || log.includes('超时')) {
-        coloredLog = chalk.red(log);
+        coloredLog = this.damageText(log);
       } else if (log.includes('击败') || log.includes('🎉')) {
-        coloredLog = chalk.magenta(log);
+        coloredLog = this.defeatText(log);
       } else if (log.includes('获得') || log.includes('💚') || log.includes('吸血')) {
-        coloredLog = chalk.cyan(log);
+        coloredLog = this.lifestealText(log);
       }
       
       this.stdout.write(coloredLog + '\n');

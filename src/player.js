@@ -166,45 +166,6 @@ class Player {
     return this.equipment.accessory?.lifesteal || 0;
   }
   
-  incrementCombo(isPerfect) {
-    if (isPerfect) {
-      this.comboCount++;
-      if (this.comboCount >= 3) {
-        this.comboActive = true;
-      }
-      if (this.comboCount > this.stats.maxCombo) {
-        this.stats.maxCombo = this.comboCount;
-      }
-      return this.comboCount;
-    }
-    return this.comboCount;
-  }
-  
-  breakCombo() {
-    if (this.comboCount >= 3) {
-      this.stats.comboBreaks++;
-    }
-    const oldCount = this.comboCount;
-    const wasActive = this.comboActive;
-    this.comboCount = 0;
-    this.comboActive = false;
-    return { oldCount, wasActive };
-  }
-  
-  resetCombo() {
-    this.comboCount = 0;
-    this.comboActive = false;
-  }
-  
-  getComboDamageMultiplier() {
-    if (this.comboActive) {
-      return 2.0;
-    }
-    if (this.comboCount === 2) return 1.3;
-    if (this.comboCount === 1) return 1.1;
-    return 1.0;
-  }
-  
   advanceFloor() {
     this.floor++;
     if (this.floor > this.highestFloor) {

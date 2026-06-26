@@ -8,6 +8,7 @@ const SaveSystem = require('./save');
 const { MapGenerator, TILE_TYPES, movePlayer, clearTile, generateEvent } = require('./map');
 const { spawnMonster, getBossForFloor, getAllBossFloors } = require('./monsters');
 const { generateEquipment, generateBossDrop, compareEquipment, getRarityColor, getRarityName } = require('./equipment');
+const { resetCombo } = require('./combo');
 
 class Game {
   constructor() {
@@ -15,6 +16,7 @@ class Game {
     this.map = null;
     this.ui = new UIRenderer();
     this.battle = new BattleSystem();
+    this.battle.setUI(this.ui);
     this.save = new SaveSystem();
     this.mapGen = new MapGenerator(14, 10);
     
@@ -381,7 +383,7 @@ class Game {
       process.stdin.on('keypress', this.keypressListener);
     }
     
-    this.player.resetCombo();
+    resetCombo(this.player);
     
     if (result.playerWon) {
       if (this.player.floor === 50 && monster.id === 'boss_voidlord') {
